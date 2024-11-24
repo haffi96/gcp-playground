@@ -1,0 +1,27 @@
+apiVersion: skaffold/v4beta2
+kind: Config
+metadata:
+  name: playground
+
+build:
+  local:
+    push: true
+  platforms: ["linux/amd64"]
+  artifacts:
+   - image: chat-app
+     docker:
+        dockerfile: ./Dockerfile
+   - image: chat-app-auth
+     docker:
+        dockerfile: ./Dockerfile.auth
+
+
+profiles:
+  - name: dev-playground
+    manifests:
+      kpt:
+        - k8-manifests/dev-playground
+    deploy:
+      cloudrun:
+        projectid: playground-442622
+        region: europe-west4
