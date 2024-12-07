@@ -1,22 +1,29 @@
+import logging
 from aiohttp import web
-import requests
 
-import socketio
+from handlers import get_rooms_for_client_id, get_participants_for_room
+from websocket_server import sio_server
+from room_manager import RoomManager
+from dataclasses import dataclass
 
-sio = socketio.AsyncServer(async_mode="aiohttp")
-app = web.Application()
-sio.attach(app)
 
-AUTH_SERVICE_URL = "http://127.0.0.1:9000/auth"
+logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AppContext:
+    room_manager: RoomManager
 
 
 async def background_task():
     """Example of how to send server generated events to clients."""
     count = 0
     while True:
-        await sio.sleep(10)
+        await sio_server.sleep(10)
         count += 1
-        await sio.emit("my_response", {"data": "Server generated event"})
+        await sio_server.emit("my_response", {"data": "Server generated event"})
 
 
 async def index(request):
@@ -24,70 +31,26 @@ async def index(request):
         return web.Response(text=f.read(), content_type="text/html")
 
 
-@sio.event
-async def my_event(sid, message):
-    await sio.emit("my_response", {"data": message["data"]}, room=sid)
+app = web.Application()
 
 
-@sio.event
-async def my_broadcast_event(sid, message):
-    print("received broadcast event", message)
-    await sio.emit("my_response", {"data": message["data"]})
+# Application context
+app["ctx"] = AppContext(
+    # Dependencies
+    room_manager=RoomManager(),
+)
 
+# Attach Socket.IO server to the application
+sio_server.attach(app)
 
-@sio.event
-async def join(sid, message):
-    token = requests.get(f"{AUTH_SERVICE_URL}/token").json()["access_token"]
-    print(token)
-
-    await sio.enter_room(sid, message["room"])
-    await sio.emit(
-        "my_response", {"data": "Entered room: " + message["room"]}, room=sid
-    )
-
-
-@sio.event
-async def leave(sid, message):
-    await sio.leave_room(sid, message["room"])
-    await sio.emit("my_response", {"data": "Left room: " + message["room"]}, room=sid)
-
-
-@sio.event
-async def close_room(sid, message):
-    await sio.emit(
-        "my_response",
-        {"data": "Room " + message["room"] + " is closing."},
-        room=message["room"],
-    )
-    await sio.close_room(message["room"])
-
-
-@sio.event
-async def my_room_event(sid, message):
-    await sio.emit("my_response", {"data": message["data"]}, room=message["room"])
-
-
-@sio.event
-async def disconnect_request(sid):
-    await sio.disconnect(sid)
-
-
-@sio.event
-async def connect(sid, environ):
-    await sio.emit("my_response", {"data": "Connected", "count": 0}, room=sid)
-
-
-@sio.event
-def disconnect(sid):
-    print("Client disconnected")
-
-
-app.router.add_static("/static", "static")
+# Routes
 app.router.add_get("/", index)
+app.router.add_get("/room/{client_id}", get_rooms_for_client_id)
+app.router.add_get("/room/{room_id}/participants", get_participants_for_room)
 
 
 async def init_app():
-    sio.start_background_task(background_task)
+    sio_server.start_background_task(background_task)
     return app
 
 
