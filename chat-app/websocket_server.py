@@ -5,12 +5,11 @@ from config import APP_CONFIG
 from socketio.async_redis_manager import AsyncRedisManager
 from socketio.async_aiopika_manager import AsyncAioPikaManager
 import socketio
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from main import AppContext
-    from aiohttp.web import Application
 
 from schemas import Participant
 
@@ -18,10 +17,6 @@ from schemas import Participant
 logger = logging.getLogger(__name__)
 
 redis_manager = AsyncRedisManager(APP_CONFIG.REDIS_URL)
-
-aio_pika_manager = AsyncAioPikaManager(
-    APP_CONFIG.RABBITMQ_URL,
-)
 
 sio_server = socketio.AsyncServer(
     async_mode="aiohttp",
@@ -53,18 +48,20 @@ async def join(sid, message):
     ctx = await sio_app_context(sio_server, sid)
     room_manager = ctx.room_manager
 
-    token = requests.get(
-        f"{APP_CONFIG.AUTH_SERVICE_URL}/token",
-    ).json()["access_token"]
+    # token = requests.get(
+    #     f"{APP_CONFIG.AUTH_SERVICE_URL}/token",
+    # ).json()["access_token"]
 
     room_id = message["room"]
 
     await sio_server.enter_room(sid, room_id)
 
-    client_id = room_manager.get_client_id_from_sid(sid)
+    client_id = await room_manager.get_client_id_from_sid(sid)
 
-    if room_manager.rooms and room_manager.rooms.get(room_id):
-        room_manager.add_client_to_room(
+    room = await room_manager.get_room(room_id)
+
+    if room:
+        await room_manager.add_client_to_room(
             room_id=room_id,
             participant=Participant(
                 client_id=client_id,
@@ -80,7 +77,7 @@ async def join(sid, message):
         )
         return
 
-    room_manager.create_room_for_client(room_id, client_id)
+    await room_manager.create_room_for_client(room_id, client_id)
 
     await sio_server.emit(
         "my_response", {"data": "Client added to new room: " + room_id}, room=sid
@@ -129,17 +126,17 @@ async def connect(sid, environ, auth):
     token = auth["token"]
     client_id = auth["clientId"]
 
-    room_manager.save_client_connection(sid, client_id)
+    await room_manager.save_client_connection(sid, client_id)
 
     await sio_server.emit("my_response", {"data": "Connected", "count": 0}, room=sid)
 
 
 @sio_server.event
-async def disconnect(sid, environ):
+async def disconnect(sid):
     # Get room manager from app context
     ctx = await sio_app_context(sio_server, sid)
     room_manager = ctx.room_manager
 
-    room_manager.remove_client_from_room(sid)
-    room_manager.remove_client_connection(sid)
+    await room_manager.remove_client_from_room(sid)
+    await room_manager.remove_client_connection(sid)
     logger.info("Client disconnected")

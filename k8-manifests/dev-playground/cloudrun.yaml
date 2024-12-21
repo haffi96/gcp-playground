@@ -29,8 +29,20 @@ spec:
             requests:
               cpu: 100m
               memory: 256Mi
+          env:
+            - name: REDIS_URL
+              value: redis://10.89.162.227:6379
         - name: chat-app-auth
           image: chat-app-auth:latest
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+        - name: chat-app-frontend
+          image: chat-app-frontend:latest
           resources:
             limits:
               cpu: 1000m

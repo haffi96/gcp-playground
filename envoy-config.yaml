@@ -29,9 +29,14 @@ static_resources:
                             cluster: chat-app-auth
                             prefix_rewrite: "/"
                         - match:
-                            prefix: "/"
+                            prefix: "/api/"
                           route:
                             cluster: chat-app
+                            prefix_rewrite: "/"
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: chat-app-frontend
                 http_filters:
                   - name: envoy.filters.http.router
                     typed_config:
@@ -61,3 +66,14 @@ static_resources:
                     socket_address:
                       address: 127.0.0.1
                       port_value: 8001
+    - name: chat-app-frontend
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: chat-app-frontend
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 3000

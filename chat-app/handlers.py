@@ -49,11 +49,9 @@ async def get_participants_for_room(request: web.Request) -> web.Response:
     # Handler logic
     room_id = request.match_info["room_id"]
 
-    room = room_manager.rooms.get(room_id)
+    room = await room_manager.get_room(room_id)
 
     partipiants_json = [participant.model_dump() for participant in room.participants]
-
-    part = sio_server.manager.get_participants(room=room_id, namespace="/")
 
     if room:
         return web.json_response({"participants": partipiants_json})

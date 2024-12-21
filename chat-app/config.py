@@ -2,9 +2,7 @@ import os
 
 
 class Config:
-    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-
-    RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://10.89.162.227:6379")
 
     AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:9000/auth")
 

@@ -1,9 +1,6 @@
-from dataclasses import dataclass
-
 from pydantic import BaseModel
 
 
-# @dataclass
 class Participant(BaseModel):
     client_id: str
     sid: str
@@ -11,7 +8,6 @@ class Participant(BaseModel):
     role: str
 
 
-# @dataclass
 class Room(BaseModel):
     room_id: str
-    participants: list[Participant] = []
+    participants: list[Participant] | None = []

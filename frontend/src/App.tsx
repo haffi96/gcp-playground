@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 
 const App: React.FC = () => {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [emitData, setEmitData] = useState('');
   const [broadcastData, setBroadcastData] = useState('');
@@ -15,9 +15,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Connect to socket server
-    const newSocket = io('http://127.0.0.1:9000',
+    const newSocket = io(window.location.origin,
       {
-        // transports: ['websocket'],
+        path: '/api/socket.io',
         reconnection: true,
         autoConnect: true,
         agent: false,

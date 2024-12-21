@@ -14,6 +14,9 @@ build:
    - image: chat-app-auth
      docker:
         dockerfile: ./Dockerfile.auth
+   - image: chat-app-frontend
+     docker:
+        dockerfile: ./Dockerfile.frontend
 
 
 profiles:
