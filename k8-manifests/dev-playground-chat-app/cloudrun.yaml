@@ -22,40 +22,25 @@ spec:
       containers:
         - name: chat-app
           image: chat-app:latest
-          resources:
-            limits:
-              cpu: 1000m
-              memory: 512Mi
-            requests:
-              cpu: 100m
-              memory: 256Mi
-        - name: chat-app-auth
-          image: chat-app-auth:latest
-          resources:
-            limits:
-              cpu: 1000m
-              memory: 512Mi
-            requests:
-              cpu: 100m
-              memory: 256Mi
-
-        - name: envoy-proxy
-          image: envoyproxy/envoy:tools-dev
-          args: ["--config-path", "/etc/envoy/config/envoy.yaml"]
           ports:
             - name: http1
-              containerPort: 9000
-          volumeMounts:
-            - name: envoy-config
-              mountPath: /etc/envoy/config
-
-      volumes:
-        - name: envoy-config
-          secret:
-            secretName: chat-app-envoy-config # kpt-set: ${envoy-config-secret-name}
-            items:
-              - key: "REPLACEMENT_VERSION" # kpt-set: ${envoy-config-secret-version}
-                path: "envoy.yaml"
+              containerPort: 8000
+          startupProbe:
+            tcpSocket:
+              port: 8000
+            timeoutSeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: AUTH_SERVICE_URL
+              value: "https://auth-service-909066611110.europe-west4.run.app"
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
 
   traffic:
     - percent: 100

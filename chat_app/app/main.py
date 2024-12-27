@@ -1,9 +1,9 @@
 import logging
 from aiohttp import web
 
-from handlers import get_rooms_for_client_id, get_participants_for_room
-from websocket_server import sio_server
-from room_manager import RoomManager
+from app.handlers import get_rooms_for_client_id, get_participants_for_room
+from app.websocket_server import sio_server
+from app.room_manager import RoomManager
 from dataclasses import dataclass
 
 
@@ -27,7 +27,7 @@ async def background_task():
 
 
 async def index(request):
-    with open("app.html") as f:
+    with open("app/index.html") as f:
         return web.Response(text=f.read(), content_type="text/html")
 
 

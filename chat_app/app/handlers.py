@@ -1,10 +1,10 @@
 from aiohttp import web
-from websocket_server import sio_server
+from app.websocket_server import sio_server
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from main import AppContext
+    from app.main import AppContext
 
 
 async def app_context(request: web.Request) -> "AppContext":

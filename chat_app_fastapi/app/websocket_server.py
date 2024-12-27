@@ -1,43 +1,50 @@
 import logging
 
 import requests
-from config import APP_CONFIG
-from socketio.async_redis_manager import AsyncRedisManager
-from socketio.async_aiopika_manager import AsyncAioPikaManager
 import socketio
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
+
+from app.config import APP_CONFIG
 
 if TYPE_CHECKING:
-    from main import AppContext
-    from aiohttp.web import Application
+    from app.room_manager import RoomManager
 
-from schemas import Participant
+from app.schemas import Participant
 
 
 logger = logging.getLogger(__name__)
 
-redis_manager = AsyncRedisManager(APP_CONFIG.REDIS_URL)
-
-aio_pika_manager = AsyncAioPikaManager(
-    APP_CONFIG.RABBITMQ_URL,
-)
-
 sio_server = socketio.AsyncServer(
-    async_mode="aiohttp",
-    cors_allowed_origins="*",
-    client_manager=redis_manager,
+    async_mode="asgi",
+    cors_allowed_origins=[],  # Needs to be empty list
+)
+
+sio_app = socketio.ASGIApp(
+    socketio_server=sio_server,
+    socketio_path="/ws/socket.io",
 )
 
 
-async def sio_app_context(sio_server: socketio.AsyncServer, sid: str) -> "AppContext":
+async def background_task():
+    """Example of how to send server generated events to clients."""
+    logger.info("Background task started")
+    count = 0
+    while True:
+        await sio_server.sleep(10)
+        count += 1
+        await sio_server.emit("my_response", {"data": "Server generated event"})
+
+
+async def sio_app_context(sio_server: socketio.AsyncServer, sid: str) -> "RoomManager":
     environ = sio_server.get_environ(sid=sid)
-    app = environ["aiohttp.request"].app
-    return app["ctx"]
+    app = environ["asgi.scope"]["app"]
+    return app.state.room_manager
 
 
 @sio_server.event
 async def my_event(sid, message):
+    logger.info("received my event: %s", message)
     await sio_server.emit("my_response", {"data": message["data"]}, room=sid)
 
 
@@ -50,8 +57,8 @@ async def my_broadcast_event(sid, message):
 @sio_server.event
 async def join(sid, message):
     # Get room manager from app context
-    ctx = await sio_app_context(sio_server, sid)
-    room_manager = ctx.room_manager
+    logger.info("Client joined room: %s", message["room"])
+    room_manager = await sio_app_context(sio_server, sid)
 
     token = requests.get(
         f"{APP_CONFIG.AUTH_SERVICE_URL}/token",
@@ -123,22 +130,21 @@ async def connect(sid, environ, auth):
         return False
 
     # Get room manager from app context
-    ctx = await sio_app_context(sio_server, sid)
-    room_manager = ctx.room_manager
+    room_manager = await sio_app_context(sio_server, sid)
 
     token = auth["token"]
     client_id = auth["clientId"]
 
     room_manager.save_client_connection(sid, client_id)
 
+    logger.info("Client connected: %s", sid)
     await sio_server.emit("my_response", {"data": "Connected", "count": 0}, room=sid)
 
 
 @sio_server.event
-async def disconnect(sid, environ):
+async def disconnect(sid):
     # Get room manager from app context
-    ctx = await sio_app_context(sio_server, sid)
-    room_manager = ctx.room_manager
+    room_manager = await sio_app_context(sio_server, sid)
 
     room_manager.remove_client_from_room(sid)
     room_manager.remove_client_connection(sid)

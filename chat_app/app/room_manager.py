@@ -1,38 +1,18 @@
-from schemas import Participant, Room
+from app.schemas import Participant, Room
 import logging
-from config import APP_CONFIG
-from enum import StrEnum
 
 
 logger = logging.getLogger(__name__)
 
 
-class RedisHashKeys(StrEnum):
-    ROOMS = "rooms"
-    CLIENT_ROOMS = "client_rooms_map"
-    CLIENT_CONNECTIONS = "client_connections"
-    SOCKET_CONNECTIONS = "socket_connections"
-
-
-# class RedisCrud:
-#     def __init__(self) -> None:
-#         self.redis: Redis = Redis.from_url(APP_CONFIG.REDIS_URL)
-
-#     async def set(self, hash_name: str, key: str, value: str):
-#         await self.redis.hset(hash_name, key, value)
-
-
 class RoomManager:
     def __init__(self):
-        # self.redis: Redis = Redis.from_url(APP_CONFIG.REDIS_URL)
-
         self.client_rooms_map: dict[str, list[str]] = {}
         self.rooms: dict[str, Room] = {}
         self.client_connections = {}
         self.socket_connections = {}
 
     def create_new_room(self, room_id: str):
-        # self.redis.hset(RedisHashKeys.ROOMS, room_id, Room(room_id=room_id))
         self.rooms[room_id] = Room(room_id=room_id)
 
     def save_client_connection(self, sid: str, client_id: str):
@@ -86,6 +66,7 @@ class RoomManager:
         room_to_remove = None
         for client_room_id in client_rooms:
             room = self.rooms[client_room_id]
+            logger.info(room)
             if room:
                 for participant in room.participants:
                     if participant.client_id == client_id:
@@ -105,3 +86,5 @@ class RoomManager:
             for room_id in self.client_rooms_map[client_id]
             if room_id != room_to_remove.room_id
         ]
+
+        logger.info("updated room state: %s", self.rooms[client_room_id])

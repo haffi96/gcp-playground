@@ -1,3 +1,7 @@
 *.venv*
 *.terraform*
 *.kpt-pipeline*
+
+*.egg-info*
+
+.perf

@@ -2,26 +2,74 @@ apiVersion: skaffold/v4beta2
 kind: Config
 metadata:
   name: playground
+requires:
+  - configs: [auth-service, chat-app, chat-app-fastapi]
+
+---
+apiVersion: skaffold/v4beta2
+kind: Config
+metadata:
+  name: auth-service
 
 build:
   local:
     push: true
   platforms: ["linux/amd64"]
   artifacts:
-   - image: chat-app
-     docker:
-        dockerfile: ./Dockerfile
-   - image: chat-app-auth
-     docker:
+    - image: auth-service
+      docker:
         dockerfile: ./Dockerfile.auth
 
+manifests:
+  kpt:
+    - k8-manifests/dev-playground-auth-service
+deploy:
+  cloudrun:
+    projectid: playground-442622
+    region: europe-west4
 
-profiles:
-  - name: dev-playground
-    manifests:
-      kpt:
-        - k8-manifests/dev-playground
-    deploy:
-      cloudrun:
-        projectid: playground-442622
-        region: europe-west4
+---
+apiVersion: skaffold/v4beta2
+kind: Config
+metadata:
+  name: chat-app
+
+build:
+  local:
+    push: true
+  platforms: ["linux/amd64"]
+  artifacts:
+    - image: chat-app
+      docker:
+        dockerfile: ./Dockerfile
+
+manifests:
+  kpt:
+    - k8-manifests/dev-playground-chat-app
+deploy:
+  cloudrun:
+    projectid: playground-442622
+    region: europe-west4
+
+---
+apiVersion: skaffold/v4beta2
+kind: Config
+metadata:
+  name: chat-app-fastapi
+
+build:
+  local:
+    push: true
+  platforms: ["linux/amd64"]
+  artifacts:
+    - image: chat-app-fastapi
+      docker:
+        dockerfile: ./Dockerfile.fastapi
+
+manifests:
+  kpt:
+    - k8-manifests/dev-playground-chat-app-fastapi
+deploy:
+  cloudrun:
+    projectid: playground-442622
+    region: europe-west4

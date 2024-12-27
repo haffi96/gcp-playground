@@ -1,0 +1,47 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chat-app-fastapi
+  labels:
+    cloud.googleapis.com/location: europe-west4
+  annotations:
+    autoscaling.knative.dev/class: kpa.autoscaling.knative.dev
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: BETA
+
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1" # kpt-set: ${minScale}
+        autoscaling.knative.dev/maxScale: "10" # kpt-set: ${maxScale}
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 80 # kpt-set: ${containerConcurrency}
+      serviceAccountName: REPLACEMENT # kpt-set: ${serviceAccountName}
+      containers:
+        - name: chat-app-fastapi
+          image: chat-app-fastapi:latest
+          ports:
+            - name: http1
+              containerPort: 8000
+          startupProbe:
+            tcpSocket:
+              port: 8000
+            timeoutSeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: AUTH_SERVICE_URL
+              value: "https://auth-service-909066611110.europe-west4.run.app"
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+
+  traffic:
+    - percent: 100
+      latestRevision: true

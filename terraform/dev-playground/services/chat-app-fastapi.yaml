@@ -1,0 +1,8 @@
+name: chat-app-fastapi
+type: cloudrun
+region: europe-west4
+
+
+admin_members: [
+  "user:haffimazhar96@gmail.com",
+]

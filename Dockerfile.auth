@@ -1,15 +1,17 @@
-FROM python:3.9
+FROM python:3.11
 
 WORKDIR /code
 
 
-COPY ./chat-app/requirements.txt /code/requirements.txt
+COPY ./auth_service/requirements.txt .
+COPY ./auth_service/setup.py .
 
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt \
+    && pip install --no-cache-dir -e .
 
 
-COPY ./chat-app /code/app
+COPY ./auth_service .
 
 
-CMD ["uvicorn", "app.auth_service:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

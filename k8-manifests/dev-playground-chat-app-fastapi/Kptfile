@@ -7,6 +7,4 @@ pipeline:
     - image: gcr.io/kpt-fn/apply-setters:v0.2.0
       configMap:
         env: dev-playground
-        serviceAccountName: chat-app-cloudrun@playground-442622.iam.gserviceaccount.com
-        envoy-config-secret-name: chat-app-envoy-config
-        envoy-config-secret-version: 9
+        serviceAccountName: chat-app-fastapi-cloudrun@playground-442622.iam.gserviceaccount.com

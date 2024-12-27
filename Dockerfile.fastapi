@@ -1,0 +1,17 @@
+FROM python:3.11
+
+WORKDIR /code
+
+
+COPY ./chat_app_fastapi/requirements.txt .
+COPY ./chat_app_fastapi/setup.py .
+
+
+RUN pip install --no-cache-dir --upgrade -r requirements.txt \
+    && pip install --no-cache-dir -e .
+
+
+COPY ./chat_app_fastapi .
+
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
