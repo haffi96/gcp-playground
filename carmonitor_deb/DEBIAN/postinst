@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+# Install Python package
+cd /usr/share/carmonitor
+if [ -f setup.py ]; then
+    python3 setup.py install
+else
+    echo "Error: setup.py not found in /usr/share/carmonitor"
+    exit 1
+fi
+
+# Create secrets directory with restricted permissions
+mkdir -p /etc/carmonitor/secrets
+chown root:root /etc/carmonitor/secrets
+chmod 700 /etc/carmonitor/secrets
+
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable carmonitor
+systemctl start carmonitor

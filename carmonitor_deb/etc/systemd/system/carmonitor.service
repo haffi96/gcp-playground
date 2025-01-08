@@ -1,0 +1,15 @@
+[Unit]
+Description=Car Monitoring Program
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/carmonitor
+Restart=always
+RestartSec=5
+Environment=CONFIG_PATH=/etc/carmonitor/config.yaml
+Environment=SECRETS_PATH=/etc/carmonitor/secrets
+
+[Install]
+WantedBy=multi-user.target

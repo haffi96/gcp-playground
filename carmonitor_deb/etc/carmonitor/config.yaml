@@ -1,0 +1,19 @@
+# Car Monitor Configuration
+service:
+  name: carmonitor
+  version: 1.0
+  log_level: info
+
+monitoring:
+  interval: 30  # seconds
+  targets:
+    - name: engine
+      enabled: true
+      thresholds:
+        temperature: 90
+        oil_pressure: 40
+    - name: tires
+      enabled: true
+      thresholds:
+        pressure: 32
+        temperature: 45
