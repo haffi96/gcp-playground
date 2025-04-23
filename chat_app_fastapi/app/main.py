@@ -2,12 +2,12 @@ import logging
 
 from app.websocket_server import background_task, sio_server, sio_app
 from app.room_manager import RoomManager
-from dataclasses import dataclass
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from app.handlers import router
-
+from app.config import APP_CONFIG
+import yaml
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -42,3 +42,9 @@ app.mount("/ws", sio_app)
 
 # Routes
 app.include_router(router)
+
+
+@app.get("/static-config")
+async def get_static_config():
+    with open(APP_CONFIG.STATIC_CONFIG_PATH, "r") as f:
+        return yaml.safe_load(f)

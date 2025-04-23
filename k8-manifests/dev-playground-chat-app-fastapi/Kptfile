@@ -8,3 +8,5 @@ pipeline:
       configMap:
         env: dev-playground
         serviceAccountName: chat-app-fastapi-cloudrun@playground-442622.iam.gserviceaccount.com
+        static-config-secret-name: chat-app-fastapi--static-config
+        static-config-secret-version: "latest"

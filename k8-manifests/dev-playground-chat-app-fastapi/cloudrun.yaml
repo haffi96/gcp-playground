@@ -29,7 +29,7 @@ spec:
             tcpSocket:
               port: 8000
             timeoutSeconds: 30
-            periodSeconds: 10
+            periodSeconds: 60
             failureThreshold: 3
           env:
             - name: AUTH_SERVICE_URL
@@ -41,6 +41,17 @@ spec:
             requests:
               cpu: 100m
               memory: 256Mi
+          volumeMounts:
+            - name: static-config
+              mountPath: /etc/chat_app
+
+      volumes:
+        - name: static-config
+          secret:
+            secretName: chat-app-fastapi--static-config # kpt-set: ${static-config-secret-name}
+            items:
+              - key: "REPLACEMENT_VERSION" # kpt-set: ${static-config-secret-version}
+                path: static_config.yaml
 
   traffic:
     - percent: 100

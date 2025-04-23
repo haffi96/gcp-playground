@@ -1,0 +1,5 @@
+configuration:
+  key: foo
+  value: bar
+  version: 4
+  deletion_policy_used: abandon
