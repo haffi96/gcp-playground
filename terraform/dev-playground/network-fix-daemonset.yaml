@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: network-fix
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: network-fix
+  template:
+    metadata:
+      labels:
+        app: network-fix
+    spec:
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        workload: livekit
+      initContainers:
+      - name: fix-checksums
+        image: alpine:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          apk add --no-cache ethtool
+          echo "Before: "
+          ethtool -k eth0 | grep checksumming
+          # Disable TX checksumming to fix SCTP over hostNetwork
+          ethtool -K eth0 tx-checksum-ip-generic off || true
+          ethtool -K eth0 tx off || true
+          echo "After: "
+          ethtool -k eth0 | grep checksumming
+        securityContext:
+          privileged: true
+      containers:
+      - name: sleep
+        image: alpine:latest
+        command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
