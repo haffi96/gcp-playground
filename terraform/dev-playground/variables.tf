@@ -44,5 +44,5 @@ variable "redis_version" {
 variable "livekit_version" {
   type        = string
   description = "LiveKit server version"
-  default     = "1.5.3"
+  default     = "1.9.0"
 }

@@ -41,9 +41,6 @@ livekit:
     max_participants: 100
     # Room timeout (seconds before closing empty room)
     empty_timeout: 300
-    # Join timeout (seconds to wait for participant to fully connect)
-    # Default is 60s, increase to 180s to allow more time for connection
-    join_timeout: 300
     
   # Logging
   logging:

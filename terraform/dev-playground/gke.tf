@@ -2,6 +2,9 @@ resource "google_container_cluster" "default" {
   name     = "dev-playground"
   location = "europe-west2"
 
+  # Allow cluster deletion for playground/dev environments
+  deletion_protection = false
+
   # Standard mode (required for LiveKit host networking)
   # Remove default node pool immediately after cluster creation
   remove_default_node_pool = true
