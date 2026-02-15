@@ -1,17 +1,21 @@
 # Redis namespace
 resource "kubernetes_namespace" "redis" {
+  count = var.enable_livekit ? 1 : 0
+
   metadata {
     name = "redis"
   }
 
-  depends_on = [google_container_node_pool.livekit_nodes]
+  depends_on = [google_container_node_pool.livekit_nodes[0]]
 }
 
 # Redis ConfigMap for configuration
 resource "kubernetes_config_map" "redis_config" {
+  count = var.enable_livekit ? 1 : 0
+
   metadata {
     name      = "redis-config"
-    namespace = kubernetes_namespace.redis.metadata[0].name
+    namespace = kubernetes_namespace.redis[0].metadata[0].name
   }
 
   data = {
@@ -26,9 +30,11 @@ resource "kubernetes_config_map" "redis_config" {
 
 # Redis StatefulSet
 resource "kubernetes_stateful_set" "redis" {
+  count = var.enable_livekit ? 1 : 0
+
   metadata {
     name      = "redis"
-    namespace = kubernetes_namespace.redis.metadata[0].name
+    namespace = kubernetes_namespace.redis[0].metadata[0].name
   }
 
   spec {
@@ -102,7 +108,7 @@ resource "kubernetes_stateful_set" "redis" {
         volume {
           name = "redis-config"
           config_map {
-            name = kubernetes_config_map.redis_config.metadata[0].name
+            name = kubernetes_config_map.redis_config[0].metadata[0].name
           }
         }
 
@@ -117,9 +123,11 @@ resource "kubernetes_stateful_set" "redis" {
 
 # Redis Service
 resource "kubernetes_service" "redis" {
+  count = var.enable_livekit ? 1 : 0
+
   metadata {
     name      = "redis"
-    namespace = kubernetes_namespace.redis.metadata[0].name
+    namespace = kubernetes_namespace.redis[0].metadata[0].name
   }
 
   spec {

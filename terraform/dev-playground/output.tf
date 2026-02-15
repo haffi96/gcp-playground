@@ -2,82 +2,95 @@
 #   value = google_cloud_run_service.default["chat-app"].status[0].url
 # }
 
+locals {
+  livekit_stack_enabled = var.enable_livekit && length(google_container_cluster.default) > 0
+
+  livekit_cluster_name     = local.livekit_stack_enabled ? google_container_cluster.default[0].name : null
+  livekit_cluster_location = local.livekit_stack_enabled ? google_container_cluster.default[0].location : null
+  livekit_cluster_endpoint = local.livekit_stack_enabled ? google_container_cluster.default[0].endpoint : null
+  livekit_api_secret       = local.livekit_stack_enabled ? random_password.livekit_secret[0].result : null
+
+  nginx_ingress_lb_ip = local.livekit_stack_enabled && length(data.kubernetes_service.nginx_ingress_lb) > 0 ? try(data.kubernetes_service.nginx_ingress_lb[0].status[0].load_balancer[0].ingress[0].ip, null) : null
+  turn_lb_ip          = local.livekit_stack_enabled && length(data.kubernetes_service.turn_lb) > 0 ? try(data.kubernetes_service.turn_lb[0].status[0].load_balancer[0].ingress[0].ip, null) : null
+}
+
 # GKE Cluster outputs
 output "gke_cluster_name" {
   description = "GKE cluster name"
-  value       = google_container_cluster.default.name
+  value       = local.livekit_cluster_name
 }
 
 output "gke_cluster_location" {
   description = "GKE cluster location"
-  value       = google_container_cluster.default.location
+  value       = local.livekit_cluster_location
 }
 
 output "gke_cluster_endpoint" {
   description = "GKE cluster endpoint"
-  value       = google_container_cluster.default.endpoint
+  value       = local.livekit_cluster_endpoint
   sensitive   = true
 }
 
 output "kubectl_connection_command" {
   description = "Command to connect to the GKE cluster"
-  value       = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --location ${google_container_cluster.default.location} --project ${var.project_id}"
+  value       = local.livekit_stack_enabled ? "gcloud container clusters get-credentials ${local.livekit_cluster_name} --location ${local.livekit_cluster_location} --project ${var.project_id}" : null
 }
 
 # LoadBalancer IP for DNS configuration
 output "loadbalancer_ip" {
   description = "NGINX Ingress LoadBalancer IP (use this for DNS A record)"
-  value       = try(data.kubernetes_service.nginx_ingress_lb.status[0].load_balancer[0].ingress[0].ip, "Pending - run 'terraform refresh' after a few minutes")
+  value       = local.livekit_stack_enabled ? coalesce(local.nginx_ingress_lb_ip, "Pending - run 'terraform refresh' after a few minutes") : null
 }
 
 output "nginx_ingress_ip" {
   description = "NGINX Ingress LoadBalancer IP for signaling traffic"
-  value       = try(data.kubernetes_service.nginx_ingress_lb.status[0].load_balancer[0].ingress[0].ip, "Pending")
+  value       = local.livekit_stack_enabled ? coalesce(local.nginx_ingress_lb_ip, "Pending") : null
 }
 
 output "turn_loadbalancer_ip" {
   description = "TURN LoadBalancer IP (fallback only)"
-  value       = try(data.kubernetes_service.turn_lb.status[0].load_balancer[0].ingress[0].ip, "Pending")
+  value       = local.livekit_stack_enabled ? coalesce(local.turn_lb_ip, "Pending") : null
 }
 
 # LiveKit configuration
 output "livekit_domain" {
   description = "LiveKit server domain"
-  value       = var.livekit_domain
+  value       = var.enable_livekit ? var.livekit_domain : null
 }
 
 output "livekit_url" {
   description = "LiveKit server URL (HTTPS)"
-  value       = "https://${var.livekit_domain}"
+  value       = var.enable_livekit ? "https://${var.livekit_domain}" : null
 }
 
 output "livekit_ws_url" {
   description = "LiveKit WebSocket URL (WSS)"
-  value       = "wss://${var.livekit_domain}"
+  value       = var.enable_livekit ? "wss://${var.livekit_domain}" : null
 }
 
 # Redis connection
 output "redis_connection_string" {
   description = "Redis connection string (internal to cluster)"
-  value       = "redis.redis.svc.cluster.local:6379"
+  value       = var.enable_livekit ? "redis.redis.svc.cluster.local:6379" : null
 }
 
 # LiveKit API credentials
 output "livekit_api_key" {
   description = "LiveKit API Key"
-  value       = "devkey"
+  value       = var.enable_livekit ? "devkey" : null
 }
 
 output "livekit_api_secret" {
   description = "LiveKit API Secret"
-  value       = random_password.livekit_secret.result
+  value       = local.livekit_api_secret
   sensitive   = true
 }
 
 # DNS Configuration Instructions
 output "dns_configuration_instructions" {
   description = "Instructions for configuring DNS in Cloudflare"
-  value       = <<-EOT
+  value       = local.livekit_stack_enabled ? (
+    <<-EOT
     ========================================
     DNS CONFIGURATION REQUIRED
     ========================================
@@ -86,7 +99,7 @@ output "dns_configuration_instructions" {
     
     Type:   A
     Name:   livekit-gke
-    Value:  ${try(data.kubernetes_service.nginx_ingress_lb.status[0].load_balancer[0].ingress[0].ip, "PENDING - wait for LoadBalancer IP")}
+    Value:  ${coalesce(local.nginx_ingress_lb_ip, "PENDING - wait for LoadBalancer IP")}
     TTL:    Auto
     Proxy:  OFF (Disable Cloudflare proxy - DNS only)
     
@@ -105,15 +118,17 @@ output "dns_configuration_instructions" {
     5. Check service status: kubectl get svc -n livekit
     
     ========================================
-  EOT
+    EOT
+  ) : "LiveKit is disabled. Set enable_livekit=true to deploy and receive DNS instructions."
 }
 
 # Post-deployment commands
 output "useful_commands" {
   description = "Useful kubectl commands for managing LiveKit"
-  value       = <<-EOT
+  value       = local.livekit_stack_enabled ? (
+    <<-EOT
     # Connect to cluster:
-    gcloud container clusters get-credentials ${google_container_cluster.default.name} --location ${google_container_cluster.default.location} --project ${var.project_id}
+    gcloud container clusters get-credentials ${google_container_cluster.default[0].name} --location ${google_container_cluster.default[0].location} --project ${var.project_id}
     
     # IMPORTANT: Fix LiveKit probe timing (Helm chart bug workaround):
     # Run this after every 'terraform apply' that updates LiveKit:
@@ -144,5 +159,6 @@ output "useful_commands" {
     
     # Delete cluster (to stop all costs):
     terraform destroy
-  EOT
+    EOT
+  ) : "LiveKit is disabled. Set enable_livekit=true to deploy and view LiveKit management commands."
 }

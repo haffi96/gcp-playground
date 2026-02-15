@@ -1,19 +1,23 @@
 # cert-manager namespace
 resource "kubernetes_namespace" "cert_manager" {
+  count = var.enable_livekit ? 1 : 0
+
   metadata {
     name = "cert-manager"
   }
 
-  depends_on = [google_container_node_pool.livekit_nodes]
+  depends_on = [google_container_node_pool.livekit_nodes[0]]
 }
 
 # Install cert-manager via Helm
 resource "helm_release" "cert_manager" {
+  count = var.enable_livekit ? 1 : 0
+
   name       = "cert-manager"
   repository = "https://charts.jetstack.io"
   chart      = "cert-manager"
   version    = "v1.13.3"
-  namespace  = kubernetes_namespace.cert_manager.metadata[0].name
+  namespace  = kubernetes_namespace.cert_manager[0].metadata[0].name
 
   set {
     name  = "installCRDs"
@@ -22,14 +26,16 @@ resource "helm_release" "cert_manager" {
 
   set {
     name  = "global.leaderElection.namespace"
-    value = kubernetes_namespace.cert_manager.metadata[0].name
+    value = kubernetes_namespace.cert_manager[0].metadata[0].name
   }
 
-  depends_on = [google_container_node_pool.livekit_nodes]
+  depends_on = [google_container_node_pool.livekit_nodes[0]]
 }
 
 # ClusterIssuer for Let's Encrypt production (using DNS-01 challenge)
 resource "kubectl_manifest" "letsencrypt_prod" {
+  count = var.enable_livekit ? 1 : 0
+
   yaml_body = <<-YAML
     apiVersion: cert-manager.io/v1
     kind: ClusterIssuer
@@ -47,11 +53,13 @@ resource "kubectl_manifest" "letsencrypt_prod" {
               class: nginx
   YAML
 
-  depends_on = [helm_release.cert_manager]
+  depends_on = [helm_release.cert_manager[0]]
 }
 
 # Certificate for LiveKit domain
 resource "kubectl_manifest" "livekit_certificate" {
+  count = var.enable_livekit ? 1 : 0
+
   yaml_body = <<-YAML
     apiVersion: cert-manager.io/v1
     kind: Certificate
@@ -70,13 +78,15 @@ resource "kubectl_manifest" "livekit_certificate" {
   YAML
 
   depends_on = [
-    kubectl_manifest.letsencrypt_prod,
-    kubernetes_namespace.livekit
+    kubectl_manifest.letsencrypt_prod[0],
+    kubernetes_namespace.livekit[0]
   ]
 }
 
 # ClusterIssuer for Let's Encrypt staging (for testing)
 resource "kubectl_manifest" "letsencrypt_staging" {
+  count = var.enable_livekit ? 1 : 0
+
   yaml_body = <<-YAML
     apiVersion: cert-manager.io/v1
     kind: ClusterIssuer
@@ -94,11 +104,13 @@ resource "kubectl_manifest" "letsencrypt_staging" {
               class: nginx
   YAML
 
-  depends_on = [helm_release.cert_manager]
+  depends_on = [helm_release.cert_manager[0]]
 }
 
 # Temporary NGINX Ingress for HTTP-01 challenge
 resource "helm_release" "nginx_ingress_certbot" {
+  count = var.enable_livekit ? 1 : 0
+
   name             = "nginx-ingress"
   repository       = "https://kubernetes.github.io/ingress-nginx"
   chart            = "ingress-nginx"
@@ -116,11 +128,13 @@ resource "helm_release" "nginx_ingress_certbot" {
     value = "true"
   }
 
-  depends_on = [google_container_node_pool.livekit_nodes]
+  depends_on = [google_container_node_pool.livekit_nodes[0]]
 }
 
 # Ingress for LiveKit with SSL/TLS
 resource "kubectl_manifest" "livekit_ingress_http01" {
+  count = var.enable_livekit ? 1 : 0
+
   yaml_body = <<-YAML
     apiVersion: networking.k8s.io/v1
     kind: Ingress
@@ -150,9 +164,9 @@ resource "kubectl_manifest" "livekit_ingress_http01" {
   YAML
 
   depends_on = [
-    helm_release.nginx_ingress_certbot,
-    kubectl_manifest.letsencrypt_prod,
-    kubernetes_namespace.livekit
+    helm_release.nginx_ingress_certbot[0],
+    kubectl_manifest.letsencrypt_prod[0],
+    kubernetes_namespace.livekit[0]
   ]
 }
 

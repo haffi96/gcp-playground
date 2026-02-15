@@ -1,4 +1,6 @@
 resource "google_container_cluster" "default" {
+  count = var.enable_livekit ? 1 : 0
+
   name     = "dev-playground"
   location = "europe-west2"
 
@@ -37,9 +39,11 @@ resource "google_container_cluster" "default" {
 }
 
 resource "google_container_node_pool" "livekit_nodes" {
+  count = var.enable_livekit ? 1 : 0
+
   name     = "livekit-node-pool"
-  location = google_container_cluster.default.location
-  cluster  = google_container_cluster.default.name
+  location = google_container_cluster.default[0].location
+  cluster  = google_container_cluster.default[0].name
 
   # Auto-scaling configuration (0 to N nodes)
   autoscaling {

@@ -17,6 +17,12 @@ variable "livekit_domain" {
   default     = "livekit-gke.haffi.dev"
 }
 
+variable "enable_livekit" {
+  type        = bool
+  description = "Enable the full LiveKit infrastructure stack (GKE, Redis, cert-manager, ingress, firewall, and LiveKit)"
+  default     = false
+}
+
 variable "gke_node_pool_min_count" {
   type        = number
   description = "Minimum number of nodes in the GKE node pool (0 for auto-scaling to zero)"

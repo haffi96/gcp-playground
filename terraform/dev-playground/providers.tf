@@ -32,34 +32,31 @@ provider "google" {
 # Get cluster credentials for kubernetes providers
 data "google_client_config" "default" {}
 
-data "google_container_cluster" "primary" {
-  name     = google_container_cluster.default.name
-  location = google_container_cluster.default.location
+locals {
+  kubernetes_host = var.enable_livekit ? try("https://${google_container_cluster.default[0].endpoint}", "https://127.0.0.1") : "https://127.0.0.1"
+  kubernetes_ca = var.enable_livekit ? try(base64decode(
+    google_container_cluster.default[0].master_auth[0].cluster_ca_certificate,
+  ), "") : ""
+  kubernetes_token = var.enable_livekit ? data.google_client_config.default.access_token : ""
 }
 
 provider "kubernetes" {
-  host  = "https://${data.google_container_cluster.primary.endpoint}"
-  token = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.primary.master_auth[0].cluster_ca_certificate,
-  )
+  host                   = local.kubernetes_host
+  token                  = local.kubernetes_token
+  cluster_ca_certificate = local.kubernetes_ca
 }
 
 provider "helm" {
   kubernetes {
-    host  = "https://${data.google_container_cluster.primary.endpoint}"
-    token = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(
-      data.google_container_cluster.primary.master_auth[0].cluster_ca_certificate,
-    )
+    host                   = local.kubernetes_host
+    token                  = local.kubernetes_token
+    cluster_ca_certificate = local.kubernetes_ca
   }
 }
 
 provider "kubectl" {
-  host  = "https://${data.google_container_cluster.primary.endpoint}"
-  token = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.primary.master_auth[0].cluster_ca_certificate,
-  )
+  host                   = local.kubernetes_host
+  token                  = local.kubernetes_token
+  cluster_ca_certificate = local.kubernetes_ca
   load_config_file = false
 }

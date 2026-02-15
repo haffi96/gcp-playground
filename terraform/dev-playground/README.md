@@ -33,6 +33,32 @@ This Terraform configuration deploys a complete LiveKit infrastructure on Google
    - gcloud CLI
    - kubectl
 
+## Paused Mode (Default)
+
+LiveKit is now controlled by `enable_livekit`, and it is **disabled by default**:
+
+```hcl
+enable_livekit = false
+```
+
+This keeps all LiveKit configuration in the repo, but prevents accidental expensive redeploys during normal Terraform work.
+
+### Workflows
+
+```bash
+# Default behavior (LiveKit paused)
+terraform plan
+
+# Temporarily enable LiveKit for testing
+terraform plan -var='enable_livekit=true'
+terraform apply -var='enable_livekit=true'
+
+# Pause again after testing (plans destroy of LiveKit resources)
+terraform apply
+```
+
+Important: switching from `enable_livekit=true` to `false` is expected to plan and destroy the LiveKit stack.
+
 ## Deployment Steps
 
 ### 1. Initialize Terraform

@@ -2,6 +2,8 @@
 
 # Allow WebRTC media (UDP)
 resource "google_compute_firewall" "livekit_webrtc_udp" {
+  count = var.enable_livekit ? 1 : 0
+
   name    = "livekit-webrtc-udp"
   network = "default"
   project = var.project_id
@@ -21,6 +23,8 @@ resource "google_compute_firewall" "livekit_webrtc_udp" {
 
 # Allow LiveKit HTTP/WebSocket and RTC TCP
 resource "google_compute_firewall" "livekit_tcp" {
+  count = var.enable_livekit ? 1 : 0
+
   name    = "livekit-tcp"
   network = "default"
   project = var.project_id
@@ -41,6 +45,8 @@ resource "google_compute_firewall" "livekit_tcp" {
 
 # Allow iperf3 testing to node
 resource "google_compute_firewall" "livekit_iperf3_tcp_udp" {
+  count = var.enable_livekit ? 1 : 0
+
   name    = "livekit-iperf3-tcp-udp"
   network = "default"
   project = var.project_id
