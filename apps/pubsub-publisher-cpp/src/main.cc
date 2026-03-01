@@ -9,7 +9,12 @@
 int main() {
   try {
     auto config = LoadConfigFromEnv();
-    ScenePayloadGenerator generator(config.scene_id, config.entity_count);
+    ScenePayloadGenerator generator(
+        config.scene_id, config.lane_count, config.lane_waypoint_count,
+        config.vehicle_count, config.road_length_meters,
+        config.road_object_count, config.road_object_spread_meters,
+        config.road_object_lane_occupancy_percent, config.occupancy_grid_width,
+        config.occupancy_grid_height);
     if (config.dry_run) {
       for (std::size_t i = 0; i < config.dry_run_frames; ++i) {
         std::cout << generator.Generate(i) << std::endl;

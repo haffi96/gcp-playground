@@ -67,12 +67,18 @@ cmake --build build -j
 Use manual SA key from `./test-credentials`:
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=./test-credentials/<your-publisher-key>.json
+export GOOGLE_APPLICATION_CREDENTIALS=/Users/haff/code/gcp-playground/test-credentials/pubsub-publisher-key.json
 export GCP_PROJECT_ID=playground-442622
 export PUBSUB_TOPIC_ID=pubsub-3d-scene-topic
-export SCENE_ID=retro-cyberpunk-western-duel
-export SCENE_ENTITY_COUNT=1500
-export TARGET_MESSAGES=50000
+export SCENE_ID=urban-night-circuit
+export PUBLISH_MODE=fixed
+export FRAME_LIMIT=50000
+export TICK_HZ=10
+export LANE_COUNT=4
+export LANE_WAYPOINT_COUNT=120
+export VEHICLE_COUNT=120
+export OCCUPANCY_GRID_WIDTH=80
+export OCCUPANCY_GRID_HEIGHT=80
 export INFLIGHT_LIMIT=2000
 export MAX_BATCH_MESSAGES=500
 export MAX_BATCH_BYTES=4194304

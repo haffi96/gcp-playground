@@ -20,6 +20,22 @@ cmake -S . -B build \
 cmake --build build -j
 ```
 
+To build with Ninja (matching your arm64 vcpkg setup):
+
+```bash
+cmake -S . -B build-ninja -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE="$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+  -DVCPKG_TARGET_TRIPLET=arm64-osx
+cmake --build build-ninja --target pubsub_3d_publisher -j
+```
+
+Or use the included CMake presets:
+
+```bash
+cmake --preset ninja-vcpkg-arm64-osx
+cmake --build --preset build-ninja-publisher -j
+```
+
 ## Required environment variables
 
 - `GCP_PROJECT_ID`
@@ -27,15 +43,20 @@ cmake --build build -j
 
 ## Optional tuning variables
 
-- `SCENE_ID` (default `retro-cyberpunk-duel`)
-- `SCENE_ENTITY_COUNT` (default `800`)
-- `TARGET_MESSAGES` (default `20000`)
+- `SCENE_ID` (default `urban-night-circuit`)
+- `DRY_RUN` (default `false`)
+- `DRY_RUN_FRAMES` (default `3`)
+- `PUBLISH_MODE` (default `fixed`)
+- `FRAME_LIMIT` (default `50000`)
+- `TICK_HZ` (default `10`)
+- `LANE_COUNT` (default `4`)
+- `LANE_WAYPOINT_COUNT` (default `120`)
+- `VEHICLE_COUNT` (default `120`)
+- `OCCUPANCY_GRID_WIDTH` (default `80`)
+- `OCCUPANCY_GRID_HEIGHT` (default `80`)
 - `INFLIGHT_LIMIT` (default `2000`)
 - `MAX_BATCH_MESSAGES` (default `500`)
 - `MAX_BATCH_BYTES` (default `4194304`)
-- `MAX_HOLD_TIME_MS` (default `20`)
-- `DRY_RUN` (default `false`)
-- `DRY_RUN_FRAMES` (default `3`)
 
 ## Build
 
@@ -43,6 +64,13 @@ cmake --build build -j
 cmake -S . -B build \
   -DCMAKE_TOOLCHAIN_FILE="$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake"
 cmake --build build -j
+```
+
+### Build with Ninja target
+
+```bash
+cmake --preset ninja-vcpkg-arm64-osx
+cmake --build --preset build-ninja-publisher -j
 ```
 
 ## Run publish benchmark

@@ -1,9 +1,45 @@
-export type SceneEntity = {
+export type SceneVector3 = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+export type LaneModel = {
+  id: string;
+  index: number;
+  centerOffsetMeters: number;
+  widthMeters: number;
+  speedLimitKph: number;
+  waypoints: SceneVector3[];
+};
+
+export type VehicleModel = {
+  id: string;
+  laneId: string;
+  lap: number;
+  progress: number;
+  speedMps: number;
+  headingRad: number;
+  position: SceneVector3;
+  dimensions: {
+    length: number;
+    width: number;
+    height: number;
+  };
+  color: string;
+};
+
+export type RoadObjectModel = {
   id: string;
   type: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  material?: { color?: string; emissive?: string };
+  position: SceneVector3;
+  rotation: SceneVector3;
+  size: {
+    length: number;
+    width: number;
+    height: number;
+  };
+  color: string;
 };
 
 export type SceneEnvelope = {
@@ -11,14 +47,91 @@ export type SceneEnvelope = {
   timestamp: string;
   sceneId: string;
   frameId: number;
-  environment: {
-    style: string;
-    entities: SceneEntity[];
+  track: {
+    name: string;
+    lengthMeters: number;
+    widthMeters: number;
+    lanes: LaneModel[];
   };
+  occupancyGrid: {
+    origin: SceneVector3;
+    cellSizeMeters: number;
+    width: number;
+    height: number;
+    cells: number[];
+  };
+  vehicles: VehicleModel[];
+  roadObjects: RoadObjectModel[];
 };
 
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
+
+const isVector3 = (value: unknown): value is SceneVector3 => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const vector = value as Record<string, unknown>;
+  return isNumber(vector.x) && isNumber(vector.y) && isNumber(vector.z);
+};
+
+const isLane = (value: unknown): value is LaneModel => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const lane = value as Record<string, unknown>;
+  return (
+    typeof lane.id === "string" &&
+    isNumber(lane.index) &&
+    isNumber(lane.centerOffsetMeters) &&
+    isNumber(lane.widthMeters) &&
+    isNumber(lane.speedLimitKph) &&
+    Array.isArray(lane.waypoints) &&
+    lane.waypoints.length >= 4 &&
+    lane.waypoints.every(isVector3)
+  );
+};
+
+const isVehicle = (value: unknown): value is VehicleModel => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const vehicle = value as Record<string, unknown>;
+  const dimensions = vehicle.dimensions as Record<string, unknown>;
+  return (
+    typeof vehicle.id === "string" &&
+    typeof vehicle.laneId === "string" &&
+    isNumber(vehicle.lap) &&
+    isNumber(vehicle.progress) &&
+    isNumber(vehicle.speedMps) &&
+    isNumber(vehicle.headingRad) &&
+    isVector3(vehicle.position) &&
+    dimensions &&
+    isNumber(dimensions.length) &&
+    isNumber(dimensions.width) &&
+    isNumber(dimensions.height) &&
+    typeof vehicle.color === "string"
+  );
+};
+
+const isRoadObject = (value: unknown): value is RoadObjectModel => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const roadObject = value as Record<string, unknown>;
+  const size = roadObject.size as Record<string, unknown>;
+  return (
+    typeof roadObject.id === "string" &&
+    typeof roadObject.type === "string" &&
+    isVector3(roadObject.position) &&
+    isVector3(roadObject.rotation) &&
+    size &&
+    isNumber(size.length) &&
+    isNumber(size.width) &&
+    isNumber(size.height) &&
+    typeof roadObject.color === "string"
+  );
+};
 
 export const isSceneEnvelope = (value: unknown): value is SceneEnvelope => {
   if (!value || typeof value !== "object") {
@@ -33,28 +146,37 @@ export const isSceneEnvelope = (value: unknown): value is SceneEnvelope => {
   ) {
     return false;
   }
-  const environment = envelope.environment as Record<string, unknown>;
-  if (!environment || typeof environment.style !== "string" || !Array.isArray(environment.entities)) {
+  const track = envelope.track as Record<string, unknown>;
+  const occupancyGrid = envelope.occupancyGrid as Record<string, unknown>;
+  if (
+    !track ||
+    typeof track.name !== "string" ||
+    !isNumber(track.lengthMeters) ||
+    !isNumber(track.widthMeters) ||
+    !Array.isArray(track.lanes) ||
+    track.lanes.length === 0 ||
+    !track.lanes.every(isLane)
+  ) {
     return false;
   }
-  return environment.entities.every((entity) => {
-    if (!entity || typeof entity !== "object") {
-      return false;
-    }
-    const e = entity as Record<string, unknown>;
-    const position = e.position as Record<string, unknown>;
-    const rotation = e.rotation as Record<string, unknown>;
-    return (
-      typeof e.id === "string" &&
-      typeof e.type === "string" &&
-      position &&
-      rotation &&
-      isNumber(position.x) &&
-      isNumber(position.y) &&
-      isNumber(position.z) &&
-      isNumber(rotation.x) &&
-      isNumber(rotation.y) &&
-      isNumber(rotation.z)
-    );
-  });
+  if (
+    !occupancyGrid ||
+    !isVector3(occupancyGrid.origin) ||
+    !isNumber(occupancyGrid.cellSizeMeters) ||
+    !isNumber(occupancyGrid.width) ||
+    !isNumber(occupancyGrid.height) ||
+    !Array.isArray(occupancyGrid.cells) ||
+    occupancyGrid.cells.length !== occupancyGrid.width * occupancyGrid.height ||
+    !occupancyGrid.cells.every(isNumber)
+  ) {
+    return false;
+  }
+
+  return (
+    Array.isArray(envelope.vehicles) &&
+    envelope.vehicles.length > 0 &&
+    envelope.vehicles.every(isVehicle) &&
+    Array.isArray(envelope.roadObjects) &&
+    envelope.roadObjects.every(isRoadObject)
+  );
 };

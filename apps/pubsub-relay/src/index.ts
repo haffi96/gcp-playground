@@ -1,8 +1,11 @@
 import { createServer } from "node:http";
+import dotenv from "dotenv";
 import express from "express";
 import { ClientBroadcastHub } from "./broadcast-hub.js";
 import { loadConfig } from "./config.js";
 import { PubSubSceneMessageSource } from "./message-source.js";
+
+dotenv.config({ override: false });
 
 const config = loadConfig();
 const app = express();

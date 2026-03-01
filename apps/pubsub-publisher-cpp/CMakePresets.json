@@ -1,0 +1,29 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-vcpkg-arm64-osx",
+      "displayName": "Ninja + vcpkg (arm64-osx)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ninja",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "arm64-osx"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-ninja-publisher",
+      "configurePreset": "ninja-vcpkg-arm64-osx",
+      "targets": [
+        "pubsub_3d_publisher"
+      ]
+    }
+  ]
+}
