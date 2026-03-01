@@ -58,5 +58,5 @@ provider "kubectl" {
   host                   = local.kubernetes_host
   token                  = local.kubernetes_token
   cluster_ca_certificate = local.kubernetes_ca
-  load_config_file = false
+  load_config_file       = false
 }

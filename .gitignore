@@ -11,3 +11,7 @@ service-account-key.json
 *.DS_Store
 
 test-credentials
+
+node_modules
+dist
+build

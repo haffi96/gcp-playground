@@ -1,0 +1,16 @@
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY apps/pubsub-relay/package.json ./package.json
+RUN npm install
+COPY apps/pubsub-relay/ ./
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+ENV NODE_ENV=production
+ENV PORT=8080
+EXPOSE 8080
+CMD ["node", "dist/index.js"]

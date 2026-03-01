@@ -35,3 +35,9 @@ gcloud auth configure-docker europe-west4-docker.pkg.dev
 ```sh
 skaffold run --profile dev-playground  --default-repo europe-west4-docker.pkg.dev/playground-442622/playground
 ```
+
+## Pub/Sub throughput + 3D viewer
+
+The Terraform-only Pub/Sub throughput stack is documented in:
+
+- `docs/pubsub-3d-throughput.md`

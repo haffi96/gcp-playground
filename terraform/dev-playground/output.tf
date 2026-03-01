@@ -89,7 +89,7 @@ output "livekit_api_secret" {
 # DNS Configuration Instructions
 output "dns_configuration_instructions" {
   description = "Instructions for configuring DNS in Cloudflare"
-  value       = local.livekit_stack_enabled ? (
+  value = local.livekit_stack_enabled ? (
     <<-EOT
     ========================================
     DNS CONFIGURATION REQUIRED
@@ -125,7 +125,7 @@ output "dns_configuration_instructions" {
 # Post-deployment commands
 output "useful_commands" {
   description = "Useful kubectl commands for managing LiveKit"
-  value       = local.livekit_stack_enabled ? (
+  value = local.livekit_stack_enabled ? (
     <<-EOT
     # Connect to cluster:
     gcloud container clusters get-credentials ${google_container_cluster.default[0].name} --location ${google_container_cluster.default[0].location} --project ${var.project_id}
@@ -161,4 +161,29 @@ output "useful_commands" {
     terraform destroy
     EOT
   ) : "LiveKit is disabled. Set enable_livekit=true to deploy and view LiveKit management commands."
+}
+
+output "pubsub_3d_topic" {
+  description = "Pub/Sub topic for 3D scene stream"
+  value       = google_pubsub_topic.scene_topic.name
+}
+
+output "pubsub_3d_subscription" {
+  description = "Pub/Sub subscription consumed by relay"
+  value       = google_pubsub_subscription.relay_subscription.name
+}
+
+output "pubsub_3d_publisher_service_account_email" {
+  description = "Service account for local publisher credentials"
+  value       = google_service_account.pubsub_3d_publisher.email
+}
+
+output "pubsub_3d_relay_url" {
+  description = "Cloud Run URL for relay service"
+  value       = google_cloud_run_v2_service.pubsub_3d_relay.uri
+}
+
+output "pubsub_3d_webapp_url" {
+  description = "Cloud Run URL for webapp service"
+  value       = google_cloud_run_v2_service.pubsub_3d_webapp.uri
 }
