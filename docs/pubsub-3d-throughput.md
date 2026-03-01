@@ -9,7 +9,7 @@ This stack adds:
 ## 1) Build and push images
 
 ```bash
-./scripts/build_push_pubsub_3d_images.sh
+./scripts/deploy.sh --build-only
 ```
 
 Optional overrides:
@@ -17,11 +17,17 @@ Optional overrides:
 ```bash
 PROJECT_ID=playground-442622 \
 REGION=europe-west4 \
-REPOSITORY=playground \
+REPOSITORY=playground-docker-repo \
 TAG=latest \
 VITE_RELAY_URL=https://relay.example.run.app \
 VITE_STREAM_PROTOCOL=ws \
-./scripts/build_push_pubsub_3d_images.sh
+./scripts/deploy.sh --build-only
+```
+
+Deploy selected services and run Terraform apply:
+
+```bash
+./scripts/deploy.sh --services pubsub-relay,pubsub-3d-webapp
 ```
 
 ## 2) Provision infrastructure with Terraform (manual)
