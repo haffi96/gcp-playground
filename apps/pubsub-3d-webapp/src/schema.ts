@@ -47,6 +47,7 @@ export type SceneEnvelope = {
   timestamp: string;
   sceneId: string;
   frameId: number;
+  serverTick?: number;
   track: {
     name: string;
     lengthMeters: number;
@@ -62,6 +63,16 @@ export type SceneEnvelope = {
   };
   vehicles: VehicleModel[];
   roadObjects: RoadObjectModel[];
+  appliedCommands?: Array<{
+    schemaVersion: string;
+    commandId: string;
+    clientId: string;
+    sceneId: string;
+    actorId: string;
+    action: string;
+    timestampMs: number;
+    sequence: number;
+  }>;
 };
 
 const isNumber = (value: unknown): value is number =>
@@ -133,6 +144,25 @@ const isRoadObject = (value: unknown): value is RoadObjectModel => {
   );
 };
 
+const isAppliedCommand = (
+  value: unknown
+): value is NonNullable<SceneEnvelope["appliedCommands"]>[number] => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const command = value as Record<string, unknown>;
+  return (
+    typeof command.schemaVersion === "string" &&
+    typeof command.commandId === "string" &&
+    typeof command.clientId === "string" &&
+    typeof command.sceneId === "string" &&
+    typeof command.actorId === "string" &&
+    typeof command.action === "string" &&
+    isNumber(command.timestampMs) &&
+    isNumber(command.sequence)
+  );
+};
+
 export const isSceneEnvelope = (value: unknown): value is SceneEnvelope => {
   if (!value || typeof value !== "object") {
     return false;
@@ -142,7 +172,8 @@ export const isSceneEnvelope = (value: unknown): value is SceneEnvelope => {
     typeof envelope.schemaVersion !== "string" ||
     typeof envelope.timestamp !== "string" ||
     typeof envelope.sceneId !== "string" ||
-    !isNumber(envelope.frameId)
+    !isNumber(envelope.frameId) ||
+    (envelope.serverTick !== undefined && !isNumber(envelope.serverTick))
   ) {
     return false;
   }
@@ -177,6 +208,9 @@ export const isSceneEnvelope = (value: unknown): value is SceneEnvelope => {
     envelope.vehicles.length > 0 &&
     envelope.vehicles.every(isVehicle) &&
     Array.isArray(envelope.roadObjects) &&
-    envelope.roadObjects.every(isRoadObject)
+    envelope.roadObjects.every(isRoadObject) &&
+    (envelope.appliedCommands === undefined ||
+      (Array.isArray(envelope.appliedCommands) &&
+        envelope.appliedCommands.every(isAppliedCommand)))
   );
 };

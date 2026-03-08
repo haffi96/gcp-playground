@@ -84,10 +84,16 @@ PublisherConfig LoadConfigFromEnv() {
   ValidateEnum(config.runtime_mode, "RUNTIME_MODE", {"server", "dev"});
   ValidateEnum(config.scene_source, "SCENE_SOURCE", {"synthetic", "shared_memory"});
   config.player_actor_id = GetEnvOrDefault("PLAYER_ACTOR_ID", "car-0");
+  config.player_autopilot_mode =
+      ToLower(GetEnvOrDefault("PLAYER_AUTOPILOT_MODE", "legacy"));
+  ValidateEnum(config.player_autopilot_mode, "PLAYER_AUTOPILOT_MODE",
+               {"legacy", "input_only"});
   config.input_subscription_id = GetEnvOrDefault("INPUT_SUBSCRIPTION_ID", "");
   config.enable_local_client = GetEnvBoolOrDefault("ENABLE_LOCAL_CLIENT", false);
   config.enable_remote_input = GetEnvBoolOrDefault("ENABLE_REMOTE_INPUT", false);
   config.enable_local_input_script = GetEnvBoolOrDefault("ENABLE_LOCAL_INPUT_SCRIPT", false);
+  config.player_autopilot_enabled =
+      GetEnvBoolOrDefault("PLAYER_AUTOPILOT_ENABLED", false);
   config.dry_run_frames = GetEnvSizeOrDefault("DRY_RUN_FRAMES", 3);
   config.publish_mode = ToLower(GetEnvOrDefault("PUBLISH_MODE", "fixed"));
   ValidateEnum(config.publish_mode, "PUBLISH_MODE", {"fixed", "continuous"});

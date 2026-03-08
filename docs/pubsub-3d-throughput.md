@@ -89,6 +89,8 @@ export ENABLE_REMOTE_INPUT=true
 export ENABLE_LOCAL_CLIENT=true
 export ENABLE_LOCAL_INPUT_SCRIPT=false
 export PLAYER_ACTOR_ID=car-0
+export PLAYER_AUTOPILOT_ENABLED=0
+export PLAYER_AUTOPILOT_MODE=input_only
 export LANE_COUNT=4
 export LANE_WAYPOINT_COUNT=120
 export VEHICLE_COUNT=120
@@ -100,6 +102,8 @@ export MAX_BATCH_BYTES=4194304
 export MAX_HOLD_TIME_MS=20
 ./build-ninja/pubsub_3d_publisher
 ```
+
+Set `PLAYER_AUTOPILOT_ENABLED=1` to restore the old synthetic `car-0` autopilot path for demos or baseline throughput runs.
 
 The publisher prints one summary line including `msg_per_sec` and `mb_per_sec`.
 

@@ -39,7 +39,11 @@ int main() {
               << " enable_remote_input=" << (config.enable_remote_input ? "true" : "false")
               << " enable_local_input_script="
               << (run_local_script ? "true" : "false")
-              << " player_actor_id=" << config.player_actor_id << std::endl;
+              << " player_actor_id=" << config.player_actor_id
+              << " player_autopilot_enabled="
+              << (config.player_autopilot_enabled ? "true" : "false")
+              << " player_autopilot_mode=" << config.player_autopilot_mode
+              << std::endl;
 
     std::unique_ptr<IFrameSource> frame_source;
     std::unique_ptr<SharedMemoryStateBuffer> shared_buffer;

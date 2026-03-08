@@ -11,11 +11,13 @@ struct PublisherConfig {
   std::string runtime_mode;
   std::string scene_source;
   std::string player_actor_id;
+  std::string player_autopilot_mode;
   std::string input_subscription_id;
   bool dry_run;
   bool enable_local_client;
   bool enable_remote_input;
   bool enable_local_input_script;
+  bool player_autopilot_enabled;
   std::size_t dry_run_frames;
   std::string publish_mode;
   std::size_t frame_limit;

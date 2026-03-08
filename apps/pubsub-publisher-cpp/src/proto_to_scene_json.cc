@@ -4,12 +4,33 @@
 
 #include <cstddef>
 
+namespace {
+const char* ActionToString(pubsub3d::InputAction action) {
+  switch (action) {
+    case pubsub3d::MOVE_FORWARD:
+      return "MOVE_FORWARD";
+    case pubsub3d::MOVE_BACK:
+      return "MOVE_BACK";
+    case pubsub3d::TURN_LEFT:
+      return "TURN_LEFT";
+    case pubsub3d::TURN_RIGHT:
+      return "TURN_RIGHT";
+    case pubsub3d::STOP:
+      return "STOP";
+    case pubsub3d::INPUT_ACTION_UNSPECIFIED:
+    default:
+      return "INPUT_ACTION_UNSPECIFIED";
+  }
+}
+}  // namespace
+
 std::string ProtoFrameToSceneJson(const pubsub3d::GameStateFrame& frame) {
   nlohmann::json payload;
   payload["schemaVersion"] = frame.schema_version();
   payload["timestamp"] = frame.timestamp();
   payload["sceneId"] = frame.scene_id();
   payload["frameId"] = frame.frame_id();
+  payload["serverTick"] = frame.server_tick();
 
   payload["track"] = {
       {"name", frame.track().name()},
@@ -93,6 +114,20 @@ std::string ProtoFrameToSceneJson(const pubsub3d::GameStateFrame& frame) {
           {"width", object.size().width()},
           {"height", object.size().height()}}},
         {"color", object.color()},
+    });
+  }
+
+  payload["appliedCommands"] = nlohmann::json::array();
+  for (const auto& command : frame.applied_commands()) {
+    payload["appliedCommands"].push_back({
+        {"schemaVersion", command.schema_version()},
+        {"commandId", command.command_id()},
+        {"clientId", command.client_id()},
+        {"sceneId", command.scene_id()},
+        {"actorId", command.actor_id()},
+        {"action", ActionToString(command.action())},
+        {"timestampMs", command.timestamp_ms()},
+        {"sequence", command.sequence()},
     });
   }
 

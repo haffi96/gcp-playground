@@ -12,6 +12,16 @@
 
 namespace {
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kLaneWidthMeters = 3.9;
+constexpr double kPlayerBaseSpeedMps = 44.0;
+constexpr double kPlayerHeightMeters = 0.6;
+constexpr double kPlayerCruiseSpeedMps = 22.0;
+constexpr double kPlayerReverseSpeedMps = 9.0;
+constexpr double kPlayerLateralSpeedMps = 7.5;
+constexpr double kPlayerMaxHeadingRad = 0.26;
+constexpr const char* kPalette[] = {"#f43f5e", "#22d3ee", "#f59e0b", "#84cc16",
+                                    "#e879f9", "#60a5fa", "#fb7185", "#34d399"};
+constexpr std::size_t kPaletteSize = sizeof(kPalette) / sizeof(kPalette[0]);
 
 double SafeDouble(std::size_t value, double fallback) {
   return value == 0 ? fallback : static_cast<double>(value);
@@ -23,6 +33,15 @@ std::string EpochMillisecondsString() {
                        .count();
   return std::to_string(now);
 }
+
+double LaneCenterX(std::size_t lane_idx, std::size_t lane_count) {
+  return (static_cast<double>(lane_idx) + 0.5 - (static_cast<double>(lane_count) * 0.5)) *
+         kLaneWidthMeters;
+}
+
+double Clamp(double value, double min_value, double max_value) {
+  return std::max(min_value, std::min(max_value, value));
+}
 }  // namespace
 
 GameStateManager::GameStateManager(const PublisherConfig& config,
@@ -31,7 +50,12 @@ GameStateManager::GameStateManager(const PublisherConfig& config,
     : config_(config),
       shared_buffer_(shared_buffer),
       input_command_bus_(input_command_bus),
-      diagnostics_counter_(0) {}
+      diagnostics_counter_(0),
+      player_state_initialized_(false),
+      move_forward_active_(false),
+      move_back_active_(false),
+      turn_left_active_(false),
+      turn_right_active_(false) {}
 
 void GameStateManager::Run(const std::atomic<bool>& running) {
   std::uint64_t frame_id = 0;
@@ -81,6 +105,10 @@ pubsub3d::GameStateFrame GameStateManager::BuildFrame(std::uint64_t frame_id) {
   return frame;
 }
 
+bool GameStateManager::UseLegacyAutopilot() const {
+  return config_.player_autopilot_enabled && config_.player_autopilot_mode == "legacy";
+}
+
 void GameStateManager::ApplyCommands(pubsub3d::GameStateFrame* frame) {
   if (input_command_bus_ == nullptr || frame->vehicles_size() == 0) {
     return;
@@ -105,9 +133,18 @@ void GameStateManager::ApplyCommands(pubsub3d::GameStateFrame* frame) {
     if (!command.actor_id().empty() && command.actor_id() != config_.player_actor_id) {
       continue;
     }
-    ApplyMovementCommand(command, player);
+    if (UseLegacyAutopilot()) {
+      ApplyMovementCommand(command, player);
+    } else {
+      ApplyInputStateCommand(command);
+    }
     auto* applied = frame->add_applied_commands();
     *applied = command;
+  }
+
+  if (!UseLegacyAutopilot()) {
+    IntegrateInputOnlyPlayer(player);
+    SyncPlayerStateFromVehicle(*player);
   }
 }
 
@@ -125,12 +162,12 @@ void GameStateManager::ApplyMovementCommand(const pubsub3d::InputCommand& comman
       player_vehicle->set_speed_mps(std::max(0.0, player_vehicle->speed_mps() - 0.5));
       break;
     case pubsub3d::TURN_LEFT:
-      player_vehicle->mutable_position()->set_x(player_vehicle->position().x() - 0.55);
-      player_vehicle->set_heading_rad(player_vehicle->heading_rad() - kTurnStep);
-      break;
-    case pubsub3d::TURN_RIGHT:
       player_vehicle->mutable_position()->set_x(player_vehicle->position().x() + 0.55);
       player_vehicle->set_heading_rad(player_vehicle->heading_rad() + kTurnStep);
+      break;
+    case pubsub3d::TURN_RIGHT:
+      player_vehicle->mutable_position()->set_x(player_vehicle->position().x() - 0.55);
+      player_vehicle->set_heading_rad(player_vehicle->heading_rad() - kTurnStep);
       break;
     case pubsub3d::STOP:
       player_vehicle->set_speed_mps(0.0);
@@ -140,13 +177,202 @@ void GameStateManager::ApplyMovementCommand(const pubsub3d::InputCommand& comman
   }
 }
 
+void GameStateManager::ApplyInputStateCommand(
+    const pubsub3d::InputCommand& command) {
+  switch (command.action()) {
+    case pubsub3d::MOVE_FORWARD:
+      move_forward_active_ = true;
+      move_back_active_ = false;
+      break;
+    case pubsub3d::MOVE_BACK:
+      move_back_active_ = true;
+      move_forward_active_ = false;
+      break;
+    case pubsub3d::TURN_LEFT:
+      turn_left_active_ = true;
+      turn_right_active_ = false;
+      break;
+    case pubsub3d::TURN_RIGHT:
+      turn_right_active_ = true;
+      turn_left_active_ = false;
+      break;
+    case pubsub3d::STOP:
+      move_forward_active_ = false;
+      move_back_active_ = false;
+      turn_left_active_ = false;
+      turn_right_active_ = false;
+      break;
+    default:
+      break;
+  }
+}
+
+void GameStateManager::IntegrateInputOnlyPlayer(
+    pubsub3d::Vehicle* player_vehicle) const {
+  const double tick_seconds =
+      1.0 / static_cast<double>(std::max<std::size_t>(config_.state_tick_hz, 1));
+  const double road_length =
+      static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
+  const double half_road_length = road_length * 0.5;
+  const double road_width =
+      kLaneWidthMeters * static_cast<double>(std::max<std::size_t>(config_.lane_count, 1)) +
+      (2.4 * 2.0);
+  const double max_lateral_x = (road_width * 0.5) - 1.0;
+
+  const double forward_velocity =
+      move_forward_active_ ? kPlayerCruiseSpeedMps
+                           : (move_back_active_ ? -kPlayerReverseSpeedMps : 0.0);
+  const double lateral_velocity =
+      turn_left_active_ ? kPlayerLateralSpeedMps
+                        : (turn_right_active_ ? -kPlayerLateralSpeedMps : 0.0);
+
+  double next_x = player_vehicle->position().x() + (lateral_velocity * tick_seconds);
+  double next_z = player_vehicle->position().z() + (forward_velocity * tick_seconds);
+  std::uint64_t lap = player_vehicle->lap();
+
+  if (next_z > half_road_length) {
+    next_z -= road_length;
+    ++lap;
+  } else if (next_z < -half_road_length) {
+    next_z += road_length;
+    if (lap > 0) {
+      --lap;
+    }
+  }
+
+  next_x = Clamp(next_x, -max_lateral_x, max_lateral_x);
+  player_vehicle->mutable_position()->set_x(next_x);
+  player_vehicle->mutable_position()->set_y(kPlayerHeightMeters);
+  player_vehicle->mutable_position()->set_z(next_z);
+  player_vehicle->set_speed_mps(std::fabs(forward_velocity));
+  player_vehicle->set_lap(lap);
+  player_vehicle->set_progress((next_z + half_road_length) / road_length);
+
+  if (turn_left_active_ == turn_right_active_) {
+    player_vehicle->set_heading_rad(0.0);
+  } else {
+    player_vehicle->set_heading_rad(turn_left_active_ ? kPlayerMaxHeadingRad
+                                                      : -kPlayerMaxHeadingRad);
+  }
+}
+
+void GameStateManager::InitializePlayerState() {
+  if (player_state_initialized_) {
+    return;
+  }
+
+  const std::size_t lane_count = std::max<std::size_t>(config_.lane_count, 1);
+  const std::size_t lane_idx = lane_count / 2;
+  const double road_length =
+      static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
+  const double half_road_length = road_length * 0.5;
+
+  player_state_.set_id(config_.player_actor_id);
+  player_state_.set_lane_id("lane-" + std::to_string(lane_idx));
+  player_state_.set_lap(0);
+  player_state_.set_progress(0.0);
+  player_state_.set_speed_mps(0.0);
+  player_state_.set_heading_rad(0.0);
+  player_state_.mutable_position()->set_x(LaneCenterX(lane_idx, lane_count));
+  player_state_.mutable_position()->set_y(kPlayerHeightMeters);
+  player_state_.mutable_position()->set_z(-half_road_length);
+  player_state_.mutable_dimensions()->set_length(4.4);
+  player_state_.mutable_dimensions()->set_width(2.0);
+  player_state_.mutable_dimensions()->set_height(1.4);
+  player_state_.set_color(kPalette[0]);
+  player_state_initialized_ = true;
+}
+
+void GameStateManager::SyncPlayerStateFromVehicle(
+    const pubsub3d::Vehicle& player_vehicle) {
+  player_state_ = player_vehicle;
+  player_state_initialized_ = true;
+}
+
+pubsub3d::Vehicle GameStateManager::BuildLegacyAutopilotPlayer(
+    std::uint64_t frame_id) const {
+  const std::size_t lane_count = std::max<std::size_t>(config_.lane_count, 1);
+  const std::size_t lane_idx = lane_count / 2;
+  const double road_length =
+      static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
+  const double half_road_length = road_length * 0.5;
+  const double seconds =
+      static_cast<double>(frame_id) /
+      static_cast<double>(std::max<std::size_t>(config_.state_tick_hz, 1));
+  const double lateral_wobble = std::sin(seconds * 0.7) * 0.28;
+  const double travelled = seconds * kPlayerBaseSpeedMps;
+  const std::uint64_t lap = static_cast<std::uint64_t>(
+      travelled / SafeDouble(config_.road_length_meters, 1.0));
+  const double progress =
+      std::fmod(travelled / SafeDouble(config_.road_length_meters, 1.0), 1.0);
+  const double z = std::fmod(travelled, road_length) - half_road_length;
+
+  pubsub3d::Vehicle vehicle;
+  vehicle.set_id(config_.player_actor_id);
+  vehicle.set_lane_id("lane-" + std::to_string(lane_idx));
+  vehicle.set_lap(lap);
+  vehicle.set_progress(progress);
+  vehicle.set_speed_mps(kPlayerBaseSpeedMps);
+  vehicle.set_heading_rad(0.0);
+  vehicle.mutable_position()->set_x(LaneCenterX(lane_idx, lane_count) + lateral_wobble);
+  vehicle.mutable_position()->set_y(kPlayerHeightMeters);
+  vehicle.mutable_position()->set_z(z);
+  vehicle.mutable_dimensions()->set_length(4.4);
+  vehicle.mutable_dimensions()->set_width(2.0);
+  vehicle.mutable_dimensions()->set_height(1.4);
+  vehicle.set_color(kPalette[0]);
+  return vehicle;
+}
+
+pubsub3d::Vehicle GameStateManager::BuildInputOnlyPlayer() const {
+  return player_state_;
+}
+
+pubsub3d::Vehicle GameStateManager::BuildNpcVehicle(std::size_t vehicle_index,
+                                                    std::uint64_t frame_id) const {
+  const std::size_t lane_count = std::max<std::size_t>(config_.lane_count, 1);
+  const double road_length =
+      static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
+  const double half_road_length = road_length * 0.5;
+  const double seconds =
+      static_cast<double>(frame_id) /
+      static_cast<double>(std::max<std::size_t>(config_.state_tick_hz, 1));
+  const std::size_t lane_idx = vehicle_index % lane_count;
+  const double lateral_wobble =
+      std::sin(seconds * 0.7 + static_cast<double>(vehicle_index) * 0.35) * 0.28;
+  const double x = LaneCenterX(lane_idx, lane_count) + lateral_wobble;
+  const double base_speed = 17.0 + static_cast<double>(vehicle_index % 8) * 1.35;
+  const double travelled =
+      seconds * base_speed + static_cast<double>(vehicle_index) * 16.0;
+  const std::uint64_t lap = static_cast<std::uint64_t>(
+      travelled / SafeDouble(config_.road_length_meters, 1.0));
+  const double progress =
+      std::fmod(travelled / SafeDouble(config_.road_length_meters, 1.0), 1.0);
+  const double z = std::fmod(travelled, road_length) - half_road_length;
+
+  pubsub3d::Vehicle vehicle;
+  vehicle.set_id("car-" + std::to_string(vehicle_index));
+  vehicle.set_lane_id("lane-" + std::to_string(lane_idx));
+  vehicle.set_lap(lap);
+  vehicle.set_progress(progress);
+  vehicle.set_speed_mps(base_speed);
+  vehicle.set_heading_rad(0.0);
+  vehicle.mutable_position()->set_x(x);
+  vehicle.mutable_position()->set_y(kPlayerHeightMeters);
+  vehicle.mutable_position()->set_z(z);
+  vehicle.mutable_dimensions()->set_length(4.4);
+  vehicle.mutable_dimensions()->set_width(2.0);
+  vehicle.mutable_dimensions()->set_height(1.4);
+  vehicle.set_color(kPalette[vehicle_index % kPaletteSize]);
+  return vehicle;
+}
+
 void GameStateManager::PopulateStaticTrack(pubsub3d::Track* track) const {
   const std::size_t lane_count = std::max<std::size_t>(config_.lane_count, 1);
   const std::size_t lane_waypoints = std::max<std::size_t>(config_.lane_waypoint_count, 10);
-  const double lane_width_meters = 3.9;
   const double shoulder_width_meters = 2.4;
   const double road_width_meters =
-      lane_width_meters * static_cast<double>(lane_count) + shoulder_width_meters * 2.0;
+      kLaneWidthMeters * static_cast<double>(lane_count) + shoulder_width_meters * 2.0;
   const double road_length = static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
   const double half_road_length = road_length * 0.5;
   const std::size_t one_way_count = lane_waypoints / 2;
@@ -158,13 +384,11 @@ void GameStateManager::PopulateStaticTrack(pubsub3d::Track* track) const {
 
   for (std::size_t lane_idx = 0; lane_idx < lane_count; ++lane_idx) {
     auto* lane = track->add_lanes();
-    const double lane_center_x =
-        (static_cast<double>(lane_idx) + 0.5 - (static_cast<double>(lane_count) * 0.5)) *
-        lane_width_meters;
+    const double lane_center_x = LaneCenterX(lane_idx, lane_count);
     lane->set_id("lane-" + std::to_string(lane_idx));
     lane->set_index(static_cast<std::uint32_t>(lane_idx));
     lane->set_center_offset_meters(lane_center_x);
-    lane->set_width_meters(lane_width_meters);
+    lane->set_width_meters(kLaneWidthMeters);
     lane->set_speed_limit_kph(120.0 - static_cast<double>(lane_idx * 4));
 
     for (std::size_t wp = 0; wp < one_way_count; ++wp) {
@@ -206,45 +430,18 @@ void GameStateManager::PopulateOccupancyGrid(pubsub3d::OccupancyGrid* grid) cons
 }
 
 void GameStateManager::PopulateVehicles(pubsub3d::GameStateFrame* frame,
-                                        std::uint64_t frame_id) const {
+                                        std::uint64_t frame_id) {
   frame->clear_vehicles();
-  const std::size_t lane_count = std::max<std::size_t>(config_.lane_count, 1);
   const std::size_t vehicle_count = std::max<std::size_t>(config_.vehicle_count, 1);
-  const double lane_width_meters = 3.9;
-  const double road_length = static_cast<double>(std::max<std::size_t>(config_.road_length_meters, 500));
-  const double half_road_length = road_length * 0.5;
-  const double seconds = static_cast<double>(frame_id) / static_cast<double>(std::max<std::size_t>(config_.state_tick_hz, 1));
-  constexpr const char* kPalette[] = {"#f43f5e", "#22d3ee", "#f59e0b", "#84cc16",
-                                      "#e879f9", "#60a5fa", "#fb7185", "#34d399"};
-  constexpr std::size_t kPaletteSize = sizeof(kPalette) / sizeof(kPalette[0]);
+  if (UseLegacyAutopilot()) {
+    *frame->add_vehicles() = BuildLegacyAutopilotPlayer(frame_id);
+  } else {
+    InitializePlayerState();
+    *frame->add_vehicles() = BuildInputOnlyPlayer();
+  }
 
-  for (std::size_t i = 0; i < vehicle_count; ++i) {
-    auto* vehicle = frame->add_vehicles();
-    const std::size_t lane_idx = i == 0 ? lane_count / 2 : i % lane_count;
-    const double lane_center_x =
-        (static_cast<double>(lane_idx) + 0.5 - (static_cast<double>(lane_count) * 0.5)) *
-        lane_width_meters;
-    const double lateral_wobble = std::sin(seconds * 0.7 + static_cast<double>(i) * 0.35) * 0.28;
-    const double x = lane_center_x + lateral_wobble;
-    const double base_speed = i == 0 ? 44.0 : (17.0 + static_cast<double>(i % 8) * 1.35);
-    const double travelled = seconds * base_speed + (i == 0 ? 0.0 : static_cast<double>(i) * 16.0);
-    const std::uint64_t lap = static_cast<std::uint64_t>(travelled / SafeDouble(config_.road_length_meters, 1.0));
-    const double progress = std::fmod(travelled / SafeDouble(config_.road_length_meters, 1.0), 1.0);
-    const double z = std::fmod(travelled, road_length) - half_road_length;
-
-    vehicle->set_id("car-" + std::to_string(i));
-    vehicle->set_lane_id("lane-" + std::to_string(lane_idx));
-    vehicle->set_lap(lap);
-    vehicle->set_progress(progress);
-    vehicle->set_speed_mps(base_speed);
-    vehicle->set_heading_rad(0.0);
-    vehicle->mutable_position()->set_x(x);
-    vehicle->mutable_position()->set_y(0.6);
-    vehicle->mutable_position()->set_z(z);
-    vehicle->mutable_dimensions()->set_length(4.4);
-    vehicle->mutable_dimensions()->set_width(2.0);
-    vehicle->mutable_dimensions()->set_height(1.4);
-    vehicle->set_color(kPalette[i % kPaletteSize]);
+  for (std::size_t i = 1; i < vehicle_count; ++i) {
+    *frame->add_vehicles() = BuildNpcVehicle(i, frame_id);
   }
 }
 

@@ -69,6 +69,8 @@ Core runtime:
 - `ENABLE_REMOTE_INPUT` (default `false`, consumes input commands from Pub/Sub)
 - `INPUT_SUBSCRIPTION_ID` (required when `ENABLE_REMOTE_INPUT=true`)
 - `PLAYER_ACTOR_ID` (default `car-0`, actor controlled by input commands)
+- `PLAYER_AUTOPILOT_ENABLED` (default `false`, keeps `car-0` stationary until input unless enabled)
+- `PLAYER_AUTOPILOT_MODE` (default `legacy`, supported values: `legacy`, `input_only`)
 - `DRY_RUN` (default `false`)
 - `DRY_RUN_FRAMES` (default `3`)
 
@@ -190,11 +192,15 @@ ENABLE_LOCAL_CLIENT=1 \
 ENABLE_REMOTE_INPUT=1 \
 ENABLE_LOCAL_INPUT_SCRIPT=0 \
 PLAYER_ACTOR_ID=car-0 \
+PLAYER_AUTOPILOT_ENABLED=0 \
+PLAYER_AUTOPILOT_MODE=input_only \
 STATE_TICK_HZ=30 \
 TICK_HZ=30 \
 LOCAL_CLIENT_TICK_HZ=30 \
 ./build-ninja/pubsub_3d_publisher
 ```
+
+To restore the original demo movement for `car-0`, set `PLAYER_AUTOPILOT_ENABLED=1`.
 
 ## Local input-command validation against relay/webapp schemas
 
