@@ -4,6 +4,7 @@ This stack adds:
 
 - a local C++ publisher for high-throughput large JSON scene messages,
 - a Cloud Run relay service that subscribes to Pub/Sub and streams to clients,
+- a relay input ingress path (`POST /input`) that publishes movement commands to a dedicated Pub/Sub input topic,
 - a Cloud Run-hosted React Three Fiber viewer.
 
 ## 1) Build and push images
@@ -44,6 +45,8 @@ Outputs to use:
 ```bash
 terraform output pubsub_3d_topic
 terraform output pubsub_3d_subscription
+terraform output pubsub_3d_input_topic
+terraform output pubsub_3d_input_subscription
 terraform output pubsub_3d_relay_url
 terraform output pubsub_3d_webapp_url
 terraform output pubsub_3d_publisher_service_account_email
@@ -76,10 +79,16 @@ Use manual SA key from `./test-credentials`:
 export GOOGLE_APPLICATION_CREDENTIALS=/Users/haff/code/gcp-playground/test-credentials/pubsub-publisher-key.json
 export GCP_PROJECT_ID=playground-442622
 export PUBSUB_TOPIC_ID=pubsub-3d-scene-topic
+export INPUT_SUBSCRIPTION_ID=pubsub-3d-input-subscription
 export SCENE_ID=urban-night-circuit
 export PUBLISH_MODE=fixed
 export FRAME_LIMIT=50000
 export TICK_HZ=10
+export STATE_TICK_HZ=10
+export ENABLE_REMOTE_INPUT=true
+export ENABLE_LOCAL_CLIENT=true
+export ENABLE_LOCAL_INPUT_SCRIPT=false
+export PLAYER_ACTOR_ID=car-0
 export LANE_COUNT=4
 export LANE_WAYPOINT_COUNT=120
 export VEHICLE_COUNT=120
@@ -89,7 +98,7 @@ export INFLIGHT_LIMIT=2000
 export MAX_BATCH_MESSAGES=500
 export MAX_BATCH_BYTES=4194304
 export MAX_HOLD_TIME_MS=20
-./build/pubsub_3d_publisher
+./build-ninja/pubsub_3d_publisher
 ```
 
 The publisher prints one summary line including `msg_per_sec` and `mb_per_sec`.
@@ -99,7 +108,15 @@ Dry run (no publish, prints JSON payloads to stdout):
 ```bash
 export DRY_RUN=true
 export DRY_RUN_FRAMES=2
-./build/pubsub_3d_publisher
+./build-ninja/pubsub_3d_publisher
+```
+
+Validate generated scene payload against relay/webapp schema guards:
+
+```bash
+DRY_RUN=1 DRY_RUN_FRAMES=1 SCENE_SOURCE=shared_memory ./build-ninja/pubsub_3d_publisher > /tmp/scene_fixture.json
+(cd ../pubsub-relay && bun run validate-scene-fixture /tmp/scene_fixture.json)
+(cd ../pubsub-3d-webapp && bun run validate-scene-fixture /tmp/scene_fixture.json)
 ```
 
 ## 4) Validate end-to-end behavior
@@ -107,7 +124,9 @@ export DRY_RUN_FRAMES=2
 - Relay health endpoint returns config: `GET <relay_url>/healthz`
 - Browser websocket endpoint: `<relay_url>/ws`
 - Browser SSE fallback endpoint: `<relay_url>/stream`
+- Input command endpoint: `POST <relay_url>/input`
 - Viewer runs at: `<webapp_url>`
+- Viewer controls: `W/A/S/D` or arrow keys for `car-0` movement.
 
 ## 5) Throughput test checklist
 

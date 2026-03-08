@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package pubsub3d;
+
+enum InputAction {
+  INPUT_ACTION_UNSPECIFIED = 0;
+  MOVE_FORWARD = 1;
+  MOVE_BACK = 2;
+  TURN_LEFT = 3;
+  TURN_RIGHT = 4;
+  STOP = 5;
+}
+
+message InputCommand {
+  string schema_version = 1;
+  string command_id = 2;
+  string client_id = 3;
+  string scene_id = 4;
+  string actor_id = 5;
+  InputAction action = 6;
+  uint64 timestamp_ms = 7;
+  uint64 sequence = 8;
+}

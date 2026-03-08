@@ -10,7 +10,7 @@
       "name": "ninja-vcpkg-arm64-osx",
       "displayName": "Ninja + vcpkg (arm64-osx)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-ninja",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "arm64-osx"

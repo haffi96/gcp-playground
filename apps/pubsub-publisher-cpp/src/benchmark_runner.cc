@@ -10,8 +10,10 @@
 #include <utility>
 
 BenchmarkRunner::BenchmarkRunner(PublisherConfig config, IPubSubPublisher& publisher,
-                                 ScenePayloadGenerator& generator)
-    : config_(std::move(config)), publisher_(publisher), generator_(generator) {}
+                                 IFrameSource& frame_source)
+    : config_(std::move(config)),
+      publisher_(publisher),
+      frame_source_(frame_source) {}
 
 int BenchmarkRunner::Run() {
   std::string publish_mode = config_.publish_mode;
@@ -39,7 +41,7 @@ int BenchmarkRunner::Run() {
       ok ? ++acked : ++failed;
     }
 
-    auto payload = generator_.Generate(sent);
+    auto payload = frame_source_.NextPayload(sent);
     payload_bytes_total += payload.size();
     inflight.push_back(publisher_.Publish(std::move(payload)));
     ++sent;

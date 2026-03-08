@@ -284,7 +284,6 @@ export const SceneView = ({ scene }: Props) => {
   };
 
   const onWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
     const nextScale = dragState.current.zoomScale + event.deltaY * 0.0011;
     dragState.current.zoomScale = clamp(nextScale, 0.65, 2.15);
   };

@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "nlohmann/json.hpp"
@@ -292,4 +293,11 @@ std::string ScenePayloadGenerator::Generate(std::uint64_t frame_id) const {
   }
 
   return payload.dump();
+}
+
+SyntheticFrameSource::SyntheticFrameSource(ScenePayloadGenerator generator)
+    : generator_(std::move(generator)) {}
+
+std::string SyntheticFrameSource::NextPayload(std::uint64_t frame_id) {
+  return generator_.Generate(frame_id);
 }

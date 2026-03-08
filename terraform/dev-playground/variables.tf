@@ -71,6 +71,18 @@ variable "pubsub_3d_subscription_name" {
   default     = "pubsub-3d-relay-subscription"
 }
 
+variable "pubsub_3d_input_topic_name" {
+  type        = string
+  description = "Pub/Sub topic for input commands from clients"
+  default     = "pubsub-3d-input-topic"
+}
+
+variable "pubsub_3d_input_subscription_name" {
+  type        = string
+  description = "Pub/Sub subscription consumed by C++ game server for remote input"
+  default     = "pubsub-3d-input-subscription"
+}
+
 variable "pubsub_3d_relay_service_name" {
   type        = string
   description = "Cloud Run service name for relay"
@@ -117,6 +129,18 @@ variable "pubsub_3d_flow_control_max_bytes" {
   type        = number
   description = "Pub/Sub subscriber flow control max outstanding bytes"
   default     = 10485760
+}
+
+variable "pubsub_3d_input_rate_limit_per_second" {
+  type        = number
+  description = "Relay input command ingress rate limit per source IP per second"
+  default     = 20
+}
+
+variable "pubsub_3d_cors_allow_origin" {
+  type        = string
+  description = "Allowed CORS origin for relay input endpoint (use * for permissive, or a specific webapp origin)"
+  default     = "*"
 }
 
 variable "pubsub_3d_relay_min_instances" {

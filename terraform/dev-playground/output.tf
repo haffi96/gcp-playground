@@ -173,6 +173,16 @@ output "pubsub_3d_subscription" {
   value       = google_pubsub_subscription.relay_subscription.name
 }
 
+output "pubsub_3d_input_topic" {
+  description = "Pub/Sub topic for input commands"
+  value       = google_pubsub_topic.input_topic.name
+}
+
+output "pubsub_3d_input_subscription" {
+  description = "Pub/Sub subscription consumed by C++ game server input subscriber"
+  value       = google_pubsub_subscription.game_server_input_subscription.name
+}
+
 output "pubsub_3d_publisher_service_account_email" {
   description = "Service account for local publisher credentials"
   value       = google_service_account.pubsub_3d_publisher.email

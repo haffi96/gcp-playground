@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package pubsub3d;
+import "proto/input_command.proto";
+
+message Vec3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Lane {
+  string id = 1;
+  uint32 index = 2;
+  double center_offset_meters = 3;
+  double width_meters = 4;
+  double speed_limit_kph = 5;
+  repeated Vec3 waypoints = 6;
+}
+
+message Track {
+  string name = 1;
+  double length_meters = 2;
+  double width_meters = 3;
+  repeated Lane lanes = 4;
+}
+
+message OccupancyGrid {
+  Vec3 origin = 1;
+  double cell_size_meters = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  repeated uint32 cells = 5;
+}
+
+message Dimensions {
+  double length = 1;
+  double width = 2;
+  double height = 3;
+}
+
+message Vehicle {
+  string id = 1;
+  string lane_id = 2;
+  uint64 lap = 3;
+  double progress = 4;
+  double speed_mps = 5;
+  double heading_rad = 6;
+  Vec3 position = 7;
+  Dimensions dimensions = 8;
+  string color = 9;
+}
+
+message Rotation {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Size {
+  double length = 1;
+  double width = 2;
+  double height = 3;
+}
+
+message RoadObject {
+  string id = 1;
+  string type = 2;
+  Vec3 position = 3;
+  Rotation rotation = 4;
+  Size size = 5;
+  string color = 6;
+}
+
+message GameStateFrame {
+  string schema_version = 1;
+  string timestamp = 2;
+  string scene_id = 3;
+  uint64 frame_id = 4;
+  Track track = 5;
+  OccupancyGrid occupancy_grid = 6;
+  repeated Vehicle vehicles = 7;
+  repeated RoadObject road_objects = 8;
+  repeated InputCommand applied_commands = 9;
+  uint64 server_tick = 10;
+}

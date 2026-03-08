@@ -1,17 +1,17 @@
 #pragma once
 
 #include "config.h"
+#include "frame_source.h"
 #include "pubsub_publisher.h"
-#include "scene_payload_generator.h"
 
 class BenchmarkRunner {
  public:
   BenchmarkRunner(PublisherConfig config, IPubSubPublisher& publisher,
-                  ScenePayloadGenerator& generator);
+                  IFrameSource& frame_source);
   int Run();
 
  private:
   PublisherConfig config_;
   IPubSubPublisher& publisher_;
-  ScenePayloadGenerator& generator_;
+  IFrameSource& frame_source_;
 };

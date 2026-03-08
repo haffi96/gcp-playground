@@ -40,6 +40,10 @@ resource "google_cloud_run_v2_service" "pubsub_3d_relay" {
         value = google_pubsub_subscription.relay_subscription.name
       }
       env {
+        name  = "PUBSUB_INPUT_TOPIC"
+        value = google_pubsub_topic.input_topic.name
+      }
+      env {
         name  = "GCP_PROJECT_ID"
         value = var.project_id
       }
@@ -58,6 +62,14 @@ resource "google_cloud_run_v2_service" "pubsub_3d_relay" {
       env {
         name  = "PUBSUB_FLOW_CONTROL_MAX_BYTES"
         value = tostring(var.pubsub_3d_flow_control_max_bytes)
+      }
+      env {
+        name  = "INPUT_RATE_LIMIT_PER_SECOND"
+        value = tostring(var.pubsub_3d_input_rate_limit_per_second)
+      }
+      env {
+        name  = "CORS_ALLOW_ORIGIN"
+        value = var.pubsub_3d_cors_allow_origin
       }
     }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "frame_source.h"
+
 #include <cstdint>
 #include <string>
 
@@ -27,4 +29,13 @@ class ScenePayloadGenerator {
   std::size_t road_object_lane_occupancy_percent_;
   std::size_t occupancy_grid_width_;
   std::size_t occupancy_grid_height_;
+};
+
+class SyntheticFrameSource : public IFrameSource {
+ public:
+  explicit SyntheticFrameSource(ScenePayloadGenerator generator);
+  std::string NextPayload(std::uint64_t frame_id) override;
+
+ private:
+  ScenePayloadGenerator generator_;
 };
